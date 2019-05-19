@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh">
+	<head>
+		<title>jQuery音乐播放器</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<link rel="stylesheet" href="css/music.css" />
+		<script src="js/jquery.min.js"></script>
+		<script src="music/musicList.js"></script>
+	</head>
+	<body class="body">
+
+		<div class="grid-music-container f-usn" id="music">
+			<div class='m-music-play-wrap'>
+				<!-- 碟盘旋转 -->
+				<div class='u-cover'></div>
+				<div class='m-now-info'>
+					<!-- 歌曲名字 -->
+					<h1 class='u-music-title'><strong>music</strong></h1>
+					<div class='m-now-controls'>
+						<!-- 进度条 -->
+						<div class='u-control u-process'>
+							<span class='buffer-process'></span>
+							<span class='current-process'></span>
+						</div>
+						<div class='u-control u-time'>00:00/00:00</div>
+						<!-- 音量调节 -->
+						<div class='u-control u-volume'>
+							<div class='volume-process' data-volume='0.50'>
+								<span class='volume-current'></span>
+								<span class='volume-bar'></span>
+								<span class='volume-event'></span>
+							</div>
+							<a class='volume-control'></a>
+						</div>
+					</div>
+					<!-- 按钮 -->
+					<div class='m-play-controls'>
+						<a class='u-play-btn prev' title='上一曲'></a>
+						<a class='u-play-btn ctrl-play paused' title='点击播放'></a>
+						<a class='u-play-btn next' title='下一曲'></a>
+						<a class='u-play-btn mode mode-list current' title='列表循环'></a>
+						<a class='u-play-btn mode mode-random' title='随机播放'></a>
+						<a class='u-play-btn mode mode-single' title='单曲循环'></a>
+						<a class='max' title='最小化'></a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="mini" title="最大化" id="mini"></div>
+
+		<div style="display: none;">
+			<audio id="audio" src="music/主人(欢迎回来)-天降之物.mp3" controls="controls">亲 您的浏览器不支持html5的audio标签</audio>
+		</div>
+		
+		//AE频谱
+		
+		<script type="text/javascript">
+			$(function() {
+				//获取audio对象
+				var myaudio = document.getElementById('audio');
+				//初始化播放模式
+				var defaultMode=0;
+				//初始化歌曲索引
+				var musicindex = 0;
+				myaudio.src = "music/" + musicList[musicindex];
+				$(".u-music-title").html("<strong>" + musicList[musicindex] + "</strong>");
+				//大小窗口切换
+				$(".max").click(function() {
+					$("#music").hide(function() {
+						$(".mini").show();
+					});
+				});
+				$(".mini").click(function() {
+					$(".mini").hide(function() {
+						$("#music").show();
+					});
+				});
+				
+				//开始/暂停
+				$(".ctrl-play").click(function() {
+					if (myaudio.paused) {
+						myaudio.play();
+						$(".ctrl-play").removeClass('paused').addClass('play').attr('title',"正在播放");
+						$(".u-cover").removeClass('paused').addClass('play');
+						$(".mini").addClass('play');
+					} else {
+						myaudio.pause();
+						$(".ctrl-play").removeClass('play').addClass('paused').attr('title',"点击播放");
+						$(".u-cover").removeClass('play').addClass('paused');
+						$(".mini").removeClass('play');
+					}
+				});
+
+				//500毫秒更新一次进度条
+				function Eveprocess() {
+					if (!myaudio.paused) {
+						//获取歌曲总长,单位秒
+						var totalTime = myaudio.duration;
+						//获取歌曲当前已播放的长度
+						var currentTime = myaudio.currentTime;
+
+						//进度条更新
+						var u_process = parseInt($('.u-process').css('width'));
+						$('.current-process').css('width', u_process * currentTime / totalTime + "px");
+						//时间显示更新
+						var currentMinute = Math.floor(currentTime / 60);
+						var currentSecond = Math.round(currentTime - currentMinute * 60);
+						if(currentMinute==0) currentMinute="00";
+						if(currentSecond<10) currentSecond="0"+currentSecond;
+						var totalminute = Math.floor(totalTime / 60);
+						var totalSecond = Math.round(totalTime - totalminute * 60);
+						if(totalminute==0) totalminute="00";
+						if(totalSecond<10) totalSecond="0"+totalSecond;
+						$('.u-time').text(currentMinute + ":" + currentSecond + " / " + totalminute + ":" + totalSecond);
+					} else {
+						//播放完毕,切换播放图标
+						$(".ctrl-play").removeClass('play').addClass('paused');
+						if (myaudio.ended) {
+							//当前音频播放结束,切换下一首
+							goNext();
+						}
+					}
+					var t = setTimeout(Eveprocess, 500);
+				}
+				Eveprocess();
+
+				//当前音频播放结束,加载下一首
+				function goNext() {
+					if(defaultMode==0){
+						musicindex = musicindex + 1;
+					}else if(defaultMode==1){
+						musicindex = Math.floor(Math.random()*musicList.length);
+					}else if(defaultMode==2){
+						$(".ctrl-play").click();
+						return;
+					}
+					if (musicindex > musicList.length) musicindex = 0;
+					myaudio.src = "music/" + musicList[musicindex];
+					$(".u-music-title").html("<strong>" + musicList[musicindex] + "</strong>");
+					$(".ctrl-play").click();
+				}
+				//切换下一首
+				$('.next').click(function(){
+					musicindex = musicindex + 1;
+					if (musicindex > musicList.length) musicindex = 0;
+					myaudio.src = "music/" + musicList[musicindex];
+					$(".u-music-title").html("<strong>" + musicList[musicindex] + "</strong>");
+					if($(".ctrl-play").hasClass('play')){
+						myaudio.play();
+					}else{
+						getAutoplay();
+					}
+				});
+				
+				//检测音频就绪状态
+				var n;
+				function getAutoplay(){
+					/* audio.readyState获取音频就绪状态
+					0 = HAVE_NOTHING - 没有关于音频是否就绪的信息
+					1 = HAVE_METADATA - 关于音频就绪的元数据
+					2 = HAVE_CURRENT_DATA - 关于当前播放位置的数据是可用的，但没有足够的数据来播放下一帧/毫秒
+					3 = HAVE_FUTURE_DATA - 当前及至少下一帧的数据是可用的
+					4 = HAVE_ENOUGH_DATA - 可用数据足以开始播放 */
+					if(myaudio.readyState==4){
+						var totalTime = myaudio.duration;
+						var totalminute = Math.floor(totalTime / 60);
+						var totalSecond = Math.round(totalTime - totalminute * 60);
+						if(totalminute==0) totalminute="00";
+						if(totalSecond<10) totalSecond="0"+totalSecond;
+						$('.u-time').text("00:00" + " / " + totalminute + ":" + totalSecond);
+						clearTimeout(n);
+					}else{
+						n=setTimeout(getAutoplay,200);
+					}
+				}
+				getAutoplay();
+
+				//切换上一首
+				$('.prev').click(function(){
+					musicindex = musicindex - 1;
+					if (musicindex < 0) musicindex = musicList.length - 1;
+					myaudio.src = "music/" + musicList[musicindex];
+					$(".u-music-title").html("<strong>" + musicList[musicindex] + "</strong>");
+					if($(".ctrl-play").hasClass('play')){
+						myaudio.play();
+					}else{
+						myaudio.pause();
+					}
+				});
+				
+				//更改音量
+				$('.volume-event').click(function(event){
+					//计算volume-process的顶部纵坐标
+					var process_top= parseInt($(".grid-music-container").css('top')) + parseInt($(".grid-music-container").css('padding-top'));
+					//获取volume-process的高度
+					var process_height=parseInt($(".volume-process").css('height'));
+					//按照比例更新进度条
+					var volume_current_height=1-(event.clientY-process_top)/process_height;
+					$(".volume-current").css('height',(volume_current_height*100)+"%");
+					$(".volume-bar").css('bottom',(volume_current_height*100)+"%");
+					$(".volume-process").attr("data-volume",volume_current_height);
+					//设置音量
+					myaudio.volume=volume_current_height;
+				});
+				
+				//静音开关
+				$('.volume-control').click(function(){
+					//静音设置取反
+					myaudio.muted=!myaudio.muted;
+					if(myaudio.muted){
+						$('.volume-control').addClass('muted');
+					}else{
+						$('.volume-control').removeClass('muted');
+					}
+				});
+				
+				//设置播放模式
+				$('.mode').click(function(){
+					$('.mode').removeClass('current');
+					$(this).addClass('current');
+					//播放模式序号赋值为点击标签的索引
+					defaultMode=$('.mode').index($(this));
+				});
+				
+				//调整播放进度
+				$('.u-process').click(function(event){
+					//获取左窗距
+					var ableft=parseInt($(".grid-music-container").css('left'));
+					//计算进度条的起始横坐标
+					var u_process_left=ableft+parseInt($(".grid-music-container").css('padding-left'))+parseInt($(".m-music-play-wrap").css('padding-left'));
+					//计算起始点到点击位置所占比例
+					var current_percent=(event.clientX-u_process_left)/parseInt($(".u-process").css('width'));
+					//更新当前播放位置
+					myaudio.currentTime=myaudio.duration*current_percent;
+					//更新进度条显示
+					if(myaudio.paused){
+						$('.current-process').css('width', (event.clientX-u_process_left) + "px");
+					}
+				});
+				
+			});
+			
+			//拖拽功能
+			window.onload=function(){
+				//定义移动标记
+				var on_move=false;
+				//定义当前鼠标位置
+				var mouseX,mouseY;
+				$(".grid-music-container").mousedown(function(event){
+					//开启移动标记
+					mouseX=event.clientX;
+					mouseY=event.clientY;
+					on_move=true;
+				});
+				$(".grid-music-container").mousemove(function(event){
+					if(on_move){
+						//记录top和left
+						var abtop=parseInt($(".grid-music-container").css('top'));
+						var ableft=parseInt($(".grid-music-container").css('left'));
+						//根据两次鼠标位置的差值计算现在的top和left
+						$(".grid-music-container").css('top',(abtop+event.clientY-mouseY)+"px").css('left',(ableft+event.clientX-mouseX)+"px");
+						//更新鼠标位置
+						mouseX=event.clientX;
+						mouseY=event.clientY;
+					}
+				});
+				$(".grid-music-container").mouseup(function(){
+					//关闭移动标记
+					on_move=false;
+				});
+			}
+		</script>
+
+	</body>
+</html>
